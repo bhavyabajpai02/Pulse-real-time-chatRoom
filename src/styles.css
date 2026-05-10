@@ -1,0 +1,157 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-bubble-me: var(--bubble-me);
+  --color-bubble-them: var(--bubble-them);
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* Deep slate background — Discord-inspired */
+  --background: oklch(0.18 0.018 265);
+  --foreground: oklch(0.96 0.005 250);
+
+  --sidebar: oklch(0.15 0.02 265);
+  --sidebar-foreground: oklch(0.92 0.008 250);
+
+  --card: oklch(0.22 0.02 265);
+  --card-foreground: oklch(0.96 0.005 250);
+
+  --popover: oklch(0.21 0.02 265);
+  --popover-foreground: oklch(0.96 0.005 250);
+
+  /* Vibrant indigo/violet accent */
+  --primary: oklch(0.66 0.22 285);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.74 0.2 295);
+
+  --secondary: oklch(0.27 0.025 265);
+  --secondary-foreground: oklch(0.96 0.005 250);
+
+  --muted: oklch(0.25 0.022 265);
+  --muted-foreground: oklch(0.68 0.02 260);
+
+  --accent: oklch(0.32 0.05 285);
+  --accent-foreground: oklch(0.98 0.005 250);
+
+  --destructive: oklch(0.62 0.24 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --success: oklch(0.7 0.18 155);
+  --tick-read: oklch(0.72 0.16 235);
+
+  --border: oklch(0.28 0.02 265);
+  --input: oklch(0.26 0.02 265);
+  --ring: oklch(0.66 0.22 285);
+
+  --bubble-me: linear-gradient(135deg, oklch(0.62 0.22 285), oklch(0.7 0.2 305));
+  --bubble-them: oklch(0.27 0.025 265);
+
+  --gradient-primary: linear-gradient(135deg, oklch(0.66 0.22 285), oklch(0.74 0.2 305));
+  --gradient-hero: radial-gradient(ellipse at top, oklch(0.32 0.12 285 / 0.6), transparent 60%),
+    linear-gradient(180deg, oklch(0.18 0.018 265), oklch(0.14 0.018 265));
+  --shadow-glow: 0 10px 40px -10px oklch(0.66 0.22 285 / 0.4);
+  --shadow-elegant: 0 8px 30px -8px oklch(0 0 0 / 0.5);
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    background: oklch(0.66 0.22 285 / 0.3);
+  }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+}
+
+@layer utilities {
+  .bg-gradient-primary { background: var(--gradient-primary); }
+  .bg-gradient-hero { background: var(--gradient-hero); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-elegant { box-shadow: var(--shadow-elegant); }
+  .bubble-me { background: var(--bubble-me); }
+  .bubble-them { background: var(--bubble-them); }
+  .font-display { font-family: var(--font-display); }
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .typing-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted-foreground);
+    animation: typing 1.4s infinite ease-in-out;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+  .text-tick-read { color: var(--tick-read); }
+  .animate-pulse-soft {
+    animation: pulse-soft 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.35; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.08); }
+  }
+  .drop-ring {
+    box-shadow: 0 0 0 2px var(--primary), 0 0 36px -4px var(--primary);
+  }
+  .reply-flash {
+    animation: replyFlash 1.6s ease-out;
+  }
+  @keyframes replyFlash {
+    0% { background-color: oklch(0.66 0.22 285 / 0.25); }
+    100% { background-color: transparent; }
+  }
+}
