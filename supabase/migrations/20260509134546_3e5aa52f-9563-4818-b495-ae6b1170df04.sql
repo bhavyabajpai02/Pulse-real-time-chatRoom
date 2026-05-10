@@ -247,194 +247,194 @@ CREATE POLICY "Users can upload attachments to own folder"
 
 -- Suabase ai querries- which resolved the fail send mesg issue
 -- Swap any rows that violate canonical ordering
-UPDATE public.conversations
-SET
-  user_a = LEAST(user_a, user_b),
-  user_b = GREATEST(user_a, user_b)
-WHERE user_a > user_b;
+-- UPDATE public.conversations
+-- SET
+--   user_a = LEAST(user_a, user_b),
+--   user_b = GREATEST(user_a, user_b)
+-- WHERE user_a > user_b;
 
--- 0.2 Re-create the constraint
-ALTER TABLE public.conversations
-ADD CONSTRAINT conversations_check CHECK (user_a < user_b);
+-- -- 0.2 Re-create the constraint
+-- ALTER TABLE public.conversations
+-- ADD CONSTRAINT conversations_check CHECK (user_a < user_b);
 
--- 1.1 Add a trigger to always set sender_id = auth.uid()
-CREATE OR REPLACE FUNCTION public.messages_set_sender_id()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  NEW.sender_id := auth.uid();
-  RETURN NEW;
-END;
-$$;
+-- -- 1.1 Add a trigger to always set sender_id = auth.uid()
+-- CREATE OR REPLACE FUNCTION public.messages_set_sender_id()
+-- RETURNS TRIGGER
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+-- BEGIN
+--   NEW.sender_id := auth.uid();
+--   RETURN NEW;
+-- END;
+-- $$;
 
-DROP TRIGGER IF EXISTS trg_messages_set_sender_id ON public.messages;
+-- DROP TRIGGER IF EXISTS trg_messages_set_sender_id ON public.messages;
 
-CREATE TRIGGER trg_messages_set_sender_id
-BEFORE INSERT ON public.messages
-FOR EACH ROW
-EXECUTE FUNCTION public.messages_set_sender_id();
--- 1.2 (Optional but recommended) remove the “sender_id must equal auth.uid()” check from INSERT policy
+-- CREATE TRIGGER trg_messages_set_sender_id
+-- BEFORE INSERT ON public.messages
+-- FOR EACH ROW
+-- EXECUTE FUNCTION public.messages_set_sender_id();
+-- -- 1.2 (Optional but recommended) remove the “sender_id must equal auth.uid()” check from INSERT policy
 
--- 2) Block empty messages at the DB level (security + correctness)
-ALTER TABLE public.messages
-DROP CONSTRAINT IF EXISTS messages_content_or_attachment_check;
+-- -- 2) Block empty messages at the DB level (security + correctness)
+-- ALTER TABLE public.messages
+-- DROP CONSTRAINT IF EXISTS messages_content_or_attachment_check;
 
-ALTER TABLE public.messages
-ADD CONSTRAINT messages_content_or_attachment_check
-CHECK (
-  (content IS NOT NULL AND btrim(content) <> '')
-  OR attachment_url IS NOT NULL
-);
+-- ALTER TABLE public.messages
+-- ADD CONSTRAINT messages_content_or_attachment_check
+-- CHECK (
+--   (content IS NOT NULL AND btrim(content) <> '')
+--   OR attachment_url IS NOT NULL
+-- );
 
 
--- 3) Secure messages RLS properly (read + insert)
--- 3.1 Ensure RLS is ON
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+-- -- 3) Secure messages RLS properly (read + insert)
+-- -- 3.1 Ensure RLS is ON
+-- ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
--- 3.2 Drop any broken/competing policies
-DROP POLICY IF EXISTS "messages_select" ON public.messages;
-DROP POLICY IF EXISTS "messages_insert" ON public.messages;
-DROP POLICY IF EXISTS "Participants can read messages" ON public.messages;
-DROP POLICY IF EXISTS "Participants can send messages" ON public.messages;
-DROP POLICY IF EXISTS "Recipients can mark read; senders can edit" ON public.messages;
-DROP POLICY IF EXISTS "Senders can delete own messages" ON public.messages;
+-- -- 3.2 Drop any broken/competing policies
+-- DROP POLICY IF EXISTS "messages_select" ON public.messages;
+-- DROP POLICY IF EXISTS "messages_insert" ON public.messages;
+-- DROP POLICY IF EXISTS "Participants can read messages" ON public.messages;
+-- DROP POLICY IF EXISTS "Participants can send messages" ON public.messages;
+-- DROP POLICY IF EXISTS "Recipients can mark read; senders can edit" ON public.messages;
+-- DROP POLICY IF EXISTS "Senders can delete own messages" ON public.messages;
 
--- 3.3 Create a robust SELECT policy (participants can read)
-CREATE POLICY "messages_select_participants"
-ON public.messages
-FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-);
+-- -- 3.3 Create a robust SELECT policy (participants can read)
+-- CREATE POLICY "messages_select_participants"
+-- ON public.messages
+-- FOR SELECT
+-- TO authenticated
+-- USING (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- );
 
--- 3.4 Create a robust INSERT policy (participants can send)
-CREATE POLICY "messages_insert_participants"
-ON public.messages
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-);
+-- -- 3.4 Create a robust INSERT policy (participants can send)
+-- CREATE POLICY "messages_insert_participants"
+-- ON public.messages
+-- FOR INSERT
+-- TO authenticated
+-- WITH CHECK (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- );
 
--- 4) (Recommended) Add UPDATE/DELETE policies so chat keeps working
--- UPDATE: allow participants to update (tighten further if you want)
-CREATE POLICY "messages_update_participants"
-ON public.messages
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-);
+-- -- 4) (Recommended) Add UPDATE/DELETE policies so chat keeps working
+-- -- UPDATE: allow participants to update (tighten further if you want)
+-- CREATE POLICY "messages_update_participants"
+-- ON public.messages
+-- FOR UPDATE
+-- TO authenticated
+-- USING (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- )
+-- WITH CHECK (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- );
 
--- DELETE: allow only the sender (prevents removing other people’s messages)
-C-- UPDATE: allow participants to update (tighten further if you want)
-CREATE POLICY "messages_update_participants"
-ON public.messages
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-);
+-- -- DELETE: allow only the sender (prevents removing other people’s messages)
+-- C-- UPDATE: allow participants to update (tighten further if you want)
+-- CREATE POLICY "messages_update_participants"
+-- ON public.messages
+-- FOR UPDATE
+-- TO authenticated
+-- USING (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- )
+-- WITH CHECK (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- );
 
--- DELETE: allow only the sender (prevents removing other people’s messages)
--- UPDATE: allow participants to update (tighten further if you want)
-CREATE POLICY "messages_update_participants"
-ON public.messages
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-);
+-- -- DELETE: allow only the sender (prevents removing other people’s messages)
+-- -- UPDATE: allow participants to update (tighten further if you want)
+-- CREATE POLICY "messages_update_participants"
+-- ON public.messages
+-- FOR UPDATE
+-- TO authenticated
+-- USING (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- )
+-- WITH CHECK (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- );
 
--- DELETE: allow only the sender (prevents removing other people’s messages)
--- UPDATE: allow participants to update (tighten further if you want)
-CREATE POLICY "messages_update_participants"
-ON public.messages
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.conversations c
-    WHERE c.id = public.messages.conversation_id
-      AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
-  )
-);
-CREATE POLICY "messages_delete_sender"
-ON public.messages
-FOR DELETE
-TO authenticated
-USING (sender_id = auth.uid());
+-- -- DELETE: allow only the sender (prevents removing other people’s messages)
+-- -- UPDATE: allow participants to update (tighten further if you want)
+-- CREATE POLICY "messages_update_participants"
+-- ON public.messages
+-- FOR UPDATE
+-- TO authenticated
+-- USING (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- )
+-- WITH CHECK (
+--   EXISTS (
+--     SELECT 1
+--     FROM public.conversations c
+--     WHERE c.id = public.messages.conversation_id
+--       AND (c.user_a = auth.uid() OR c.user_b = auth.uid())
+--   )
+-- );
+-- CREATE POLICY "messages_delete_sender"
+-- ON public.messages
+-- FOR DELETE
+-- TO authenticated
+-- USING (sender_id = auth.uid());
 
---5) Restore realtime functionality (usually already fine, but verify) 
--- Check publication membership (view results)
-SELECT *
-FROM pg_publication_tables
-WHERE pubname = 'supabase_realtime';
--- If public.messages or public.conversations are missing, add them back:
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+-- --5) Restore realtime functionality (usually already fine, but verify) 
+-- -- Check publication membership (view results)
+-- SELECT *
+-- FROM pg_publication_tables
+-- WHERE pubname = 'supabase_realtime';
+-- -- If public.messages or public.conversations are missing, add them back:
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
 
--- 6) One more common cause of 403: missing table grants
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.messages TO authenticated;
+-- -- 6) One more common cause of 403: missing table grants
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.messages TO authenticated;
